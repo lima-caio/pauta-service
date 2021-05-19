@@ -1,0 +1,8 @@
+cpfService:
+  enabled: false
+logging:
+  level:
+    kafka: OFF
+    org: OFF
+    com.mongodb: OFF
+    de: OFF

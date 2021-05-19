@@ -1,0 +1,4 @@
+
+${AnsiColor.BLUE}           Pauta Service
+
+${AnsiColor.BLUE}:: Spring Boot :: ${spring-boot.formatted-version}

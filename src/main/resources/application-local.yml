@@ -1,0 +1,23 @@
+server:
+  port: 7080
+  servlet:
+    context-path: /api/pauta-service
+  urlPatterns: /v1/*
+management:
+  endpoints:
+    web:
+      exposure:
+        include: info,health
+spring:
+  data:
+    mongodb:
+      database: pauta
+  output:
+    ansi:
+      enabled: always
+kafka:
+  bootstrapServers: localhost:9092
+  topic: pautaTopic
+cpfService:
+  enabled: true
+  url: https://user-info.herokuapp.com/users/

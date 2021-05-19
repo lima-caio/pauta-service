@@ -1,0 +1,14 @@
+.idea
+build
+target
+logs
+.gradle
+**/.DS_Store
+.settings
+.project
+.classpath
+/bin/
+.gradletasknamecache
+checkstyle_cache
+out/
+*.iml

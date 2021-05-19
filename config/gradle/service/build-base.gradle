@@ -1,0 +1,278 @@
+apply from: 'config/gradle/service/test-base.gradle'
+
+/**
+ * Gradle Configuration
+ */
+
+group = 'com.limac'
+version = '1.0.0'
+
+buildscript {
+    ext {
+        springBootVersion = '2.1.3.RELEASE'
+        springCloudVersion = '2.1.0.RELEASE'
+        springKafkaVersion = '2.2.4.RELEASE'
+        springfoxVersion = '2.9.2'
+        commonsLangVersion = '3.8.1'
+        mapstructVersion = '1.3.0.Final'
+        lombokVersion = '1.16.18'
+        logstashLogbackEncoderVersion = '4.11'
+        log4jVersion = '1.2.17'
+        errorproneVersion = '2.2.0'
+        groovyVersion = '2.5.6'
+        spockGroovyVersion = '1.2-groovy-2.5'
+        spockReportsVersion = '1.6.1'
+        objenesisVersion = '3.0.1'
+        restAssuredVersion = '3.3.0'
+        flapdoodleVersion = '1.50.5'
+        aptPluginVersion = '0.13'
+        errorpronePluginVersion = '0.0.13'
+    }
+    repositories {
+        maven { url 'https://plugins.gradle.org/m2/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+        classpath "net.ltgt.gradle:gradle-apt-plugin:${aptPluginVersion}"
+        classpath "net.ltgt.gradle:gradle-errorprone-plugin:${errorpronePluginVersion}"
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: org.springframework.boot.gradle.plugin.SpringBootPlugin
+apply plugin: io.spring.gradle.dependencymanagement.DependencyManagementPlugin
+apply plugin: 'jacoco'
+apply plugin: 'checkstyle'
+apply plugin: 'pmd'
+apply plugin: 'codenarc'
+apply plugin: net.ltgt.gradle.apt.AptPlugin
+apply plugin: net.ltgt.gradle.apt.AptIdeaPlugin
+apply plugin: net.ltgt.gradle.errorprone.ErrorPronePlugin
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    gradleConfig {
+        groovy {
+            srcDir file('config')
+        }
+    }
+    integrationTest {
+        groovy {
+            compileClasspath += main.output + test.output
+            runtimeClasspath += main.output + test.output
+            srcDir file('src/test-integration/groovy')
+        }
+        resources.srcDir file('src/test-integration/resources')
+    }
+}
+
+dependencies {
+    // spring boot
+    compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"
+    compile "org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}"
+    compile "org.springframework.boot:spring-boot-starter-data-mongodb:${springBootVersion}"
+    compile "org.springframework.boot:spring-boot-starter-security:${springBootVersion}"
+
+    // spring cloud
+    compile "org.springframework.cloud:spring-cloud-starter-config:${springCloudVersion}"
+
+    // spring kafka
+    compile "org.springframework.kafka:spring-kafka:${springKafkaVersion}"
+
+    // apache
+    compile("org.apache.commons:commons-lang3:${commonsLangVersion}") {
+        exclude group: 'org.apache.commons', module: 'commons-io'
+    }
+
+    // mapstruct
+    compile "org.mapstruct:mapstruct-jdk8:${mapstructVersion}"
+    apt "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+
+    // lombok
+    compile "org.projectlombok:lombok:${lombokVersion}"
+    apt "org.projectlombok:lombok:${lombokVersion}"
+
+    // springfox
+    compile "io.springfox:springfox-core:${springfoxVersion}"
+    compile "io.springfox:springfox-swagger2:${springfoxVersion}"
+    compile "io.springfox:springfox-swagger-ui:${springfoxVersion}"
+
+    // logstash
+    compile("net.logstash.logback:logstash-logback-encoder:${logstashLogbackEncoderVersion}") {
+        exclude group: 'ch.qos.logback', module: 'logback-core'
+    }
+    compile "log4j:log4j:${log4jVersion}"
+
+    // errorprone
+    errorprone "com.google.errorprone:error_prone_core:${errorproneVersion}"
+
+    // test
+    testCompile "org.codehaus.groovy:groovy-all:${groovyVersion}"
+    testCompile "org.spockframework:spock-core:${spockGroovyVersion}"
+    testCompile("com.athaydes:spock-reports:${spockReportsVersion}") {
+        transitive = false
+    }
+    testCompile "org.objenesis:objenesis:${objenesisVersion}"
+
+    // integration test
+    integrationTestCompile "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
+    integrationTestCompile "org.spockframework:spock-spring:${spockGroovyVersion}"
+    integrationTestCompile "org.springframework.kafka:spring-kafka-test:${springKafkaVersion}"
+
+    integrationTestCompile("io.rest-assured:rest-assured:${restAssuredVersion}") {
+        exclude group: 'org.codehaus.groovy', module: 'groovy'
+    }
+
+    // Flapdoodle embedded MongoDB
+    integrationTestCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:${flapdoodleVersion}"
+}
+
+configurations {
+    gradleConfigCompile.extendsFrom testCompile
+    integrationTestCompile.extendsFrom testCompile
+    integrationTestRuntime.extendsFrom testRuntime
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+compileJava {
+    options.with {
+        compilerArgs += '-Xlint:deprecation'
+        compilerArgs += '-Xlint:unchecked'
+        compilerArgs += '-XepDisableWarningsInGeneratedCode'
+        compilerArgs += '-Amapstruct.unmappedTargetPolicy=IGNORE'
+    }
+}
+
+test {
+    setupCommonPropetiesForTest delegate, 'Unit'
+
+    finalizedBy jacocoTestReport
+}
+
+tasks.withType(Test) {
+    mustRunAfter tasks.withType(Pmd)
+    reports {
+        html.destination file("${reporting.baseDir}/${name}")
+    }
+}
+
+task gradleConfig(type: Copy) {
+    from 'build.gradle'
+    from('config/gradle/service') {
+        include '**/*.gradle'
+    }
+    into 'config/tmp'
+    rename '(.*).gradle', '$1.groovy'
+}
+
+task integrationTest(type: Test) {
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+}
+
+integrationTest {
+    setupCommonPropetiesForTest delegate, 'Integration'
+
+    outputs.upToDateWhen { false }
+}
+
+checkstyle {
+    toolVersion = '8.18'
+    ignoreFailures = false
+    maxWarnings = 0
+    configFile = file('config/checkstyle/checkstyle.xml')
+    sourceSets = [sourceSets.main, sourceSets.test]
+}
+
+pmd {
+    toolVersion = '5.8.1'
+    ignoreFailures = false
+    ruleSetFiles = files('config/pmd/pmd.xml')
+    sourceSets = [sourceSets.main, sourceSets.test]
+}
+
+codenarc {
+    toolVersion = '1.1'
+    ignoreFailures = false
+    maxPriority1Violations = 0
+    maxPriority2Violations = 0
+    maxPriority3Violations = 0
+    configFile = file('config/codenarc/ruleset.groovy')
+}
+
+jacoco {
+    toolVersion = '0.8.5'
+}
+
+jacocoTestReport {
+    afterEvaluate {
+        classDirectories = files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                'com/limac/pautaservice/PautaServiceApplication.class',
+                'com/limac/pautaservice/autoconfigure/KafkaConfiguration.class',
+                'com/limac/pautaservice/autoconfigure/PautaSecurityConfiguration.class',
+                'com/limac/pautaservice/autoconfigure/PautaSecurityDisabledConfiguration.class',
+                'com/limac/pautaservice/autoconfigure/RestTemplateConfiguration.class',
+                'com/limac/pautaservice/autoconfigure/SwaggerAutoConfiguration.class',
+            ])
+        })
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'CLASS'
+            excludes = [
+                'com.limac.pautaservice.PautaServiceApplication',
+                'com.limac.pautaservice.autoconfigure.KafkaConfiguration',
+                'com.limac.pautaservice.autoconfigure.PautaSecurityConfiguration',
+                'com.limac.pautaservice.autoconfigure.PautaSecurityDisabledConfiguration',
+                'com.limac.pautaservice.autoconfigure.RestTemplateConfiguration',
+                'com.limac.pautaservice.autoconfigure.SwaggerAutoConfiguration',
+            ]
+            limit {
+                counter = 'INSTRUCTION'
+                minimum = 1.0
+            }
+            limit {
+                counter = 'LINE'
+                minimum = 1.0
+            }
+            limit {
+                counter = 'BRANCH'
+                minimum = 1.0
+            }
+            limit {
+                counter = 'COMPLEXITY'
+                minimum = 1.0
+            }
+            limit {
+                counter = 'METHOD'
+                minimum = 1.0
+            }
+            limit {
+                counter = 'CLASS'
+                minimum = 1.0
+            }
+        }
+    }
+}
+
+codenarcGradleConfig.dependsOn gradleConfig
+check.dependsOn codenarcGradleConfig
+check.dependsOn codenarcIntegrationTest
+check.dependsOn jacocoTestCoverageVerification
+
+bootRun {
+    systemProperties = System.properties
+}
